@@ -9,7 +9,7 @@ void flushPendingBitsAndClear(bool bit, bytes_number_type &pendingBitsCounter, s
     pendingBitsCounter = 0;
 }
 
-FileInfo compress(std::ifstream &inputFile, std::ofstream &outputFile) {
+FileInfo encode(std::ifstream &inputFile, std::ofstream &outputFile) {
     FileInfo fileInfo{};
     initializeFileInfo(fileInfo);
 
@@ -41,6 +41,12 @@ FileInfo compress(std::ifstream &inputFile, std::ofstream &outputFile) {
         lowerIntervalBound = lowerIntervalBound + (intervalRange * fileInfo.charactersPartialSums[character] /
                                                    fileInfo.charactersPartialSums[ALPHABET_SIZE]);
 
+        // upperBound: 0xxx,  lowerBound anything : converging to 1/2 (output 0)
+        // lowerBound: 1xxx,  upperBound anything : converging to 1/2 (output 1)
+        // upperBound: 10xxx, lowerBound: 01xxx : near converging to 1/2
+        // upperBound: 11xxx, lowerBound: 01xxx : not converging to 1/2
+        // upperBound: 11xxx, lowerBound: 00xxx : not converging to 1/2
+        // upperBound: 10xxx, lowerBound: 00xxx : not converging to 1/2
         while (true) {
             if (upperIntervalBound < ONE_HALF_MAX_CALC_VALUE) {
                 flushPendingBitsAndClear(false, pendingBitsCounter, bitsBuffer);
@@ -103,7 +109,7 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    const auto inputFileInfo = compress(inputFile, outputFile);
+    const auto inputFileInfo = encode(inputFile, outputFile);
     const auto outputFileSize = getFileSize(outputFile);
     const auto entropy = calculateEntropy(inputFileInfo);
 
