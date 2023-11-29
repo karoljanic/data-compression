@@ -1,146 +1,155 @@
 #ifndef UNIVERSAL_ENCODING_HPP
 #define UNIVERSAL_ENCODING_HPP
 
+#include <algorithm>
 #include <vector>
 
-inline void encode_ellias_gamma(const size_t number, std::vector<bool>& outputBits) {
-    std::vector<bool> resultBits{};
-    size_t numberBitsCounter{0};
+inline void convert_number_to_bits(const size_t number,
+                                   std::vector<bool>& bits) {
+  size_t numberTmp{number};
+  while (numberTmp > 0) {
+    bits.push_back(numberTmp % 2);
+    numberTmp >>= 1;
+  }
 
-    while(number > 0) {
-        resultBits.push_back(number % 2);
-        numberBitsCounter++;
-        number >> 2;
-    }
+  std::reverse(bits.begin(), bits.end());
+}
 
-    for(size_t i = 0; i < (numberBitsCounter-1); i++) {
-        resultBits.push_back(false);
-    }
+inline size_t convert_bits_to_number(const size_t bitsNumber,
+                                     std::vector<bool>& bits) {
+  size_t number{0};
+  for (size_t bitNum = 0; bitNum < bitsNumber; bitNum++) {
+    number <<= 1;
+    number += bits[bitNum];
+  }
 
-    outputBits.insert(outputBits.end(), resultBits.rbegin(), resultBits.rend());
+  bits.erase(bits.begin(), bits.begin() + bitsNumber);
+
+  return number;
+}
+
+inline void encode_ellias_gamma(const size_t number,
+                                std::vector<bool>& outputBits) {
+  std::vector<bool> numberAsBits{};
+  convert_number_to_bits(number, numberAsBits);
+
+  std::vector<bool> zerosPrefix{};
+  for (size_t i = 0; i < (numberAsBits.size() - 1); i++) {
+    zerosPrefix.push_back(false);
+  }
+
+  outputBits.insert(outputBits.end(), zerosPrefix.begin(), zerosPrefix.end());
+  outputBits.insert(outputBits.end(), numberAsBits.begin(), numberAsBits.end());
 }
 
 inline size_t decode_ellias_gamma(std::vector<bool>& inputBits) {
-    size_t inputBitsCounter{0};
-    size_t numberBitsCounter{1};
+  size_t numberBitsCounter{0};
+  while (inputBits[numberBitsCounter] == 0) {
+    numberBitsCounter++;
+  }
 
-    while(inputBits[inputBitsCounter] == 0) {
-        numberBitsCounter++;
-        inputBitsCounter++;
-    }
+  inputBits.erase(inputBits.begin(), inputBits.begin() + numberBitsCounter);
 
-    size_t number{0};
-    for(size_t numberBit = 0; numberBit < numberBitsCounter; numberBit) {
-        number << 2;
-        number |= inputBits[inputBitsCounter];
-        inputBitsCounter++;
-    }
-
-    inputBits.erase(inputBits.begin(), inputBits.begin() + numberBitsCounter);
-
-    return number;
+  return convert_bits_to_number(numberBitsCounter + 1, inputBits);
 }
 
+inline void encode_ellias_delta(const size_t number,
+                                std::vector<bool>& outputBits) {
+  std::vector<bool> numberAsBits{};
+  convert_number_to_bits(number, numberAsBits);
 
-inline void encode_ellias_delta(const size_t number, std::vector<bool>& outputBits) {
-    std::vector<bool> numberBits{};
-    size_t numberBitsCounter{0};
-
-    while(number > 0) {
-        numberBits.push_back(number % 2);
-        numberBitsCounter++;
-        number >> 2;
-    }
-
-    encode_ellias_gamma(numberBitsCounter, outputBits);
-    outputBits.insert(outputBits.end(), numberBitsCounter.rbegin(), numberBitsCounter.rend());
+  encode_ellias_gamma(numberAsBits.size(), outputBits);
+  outputBits.insert(outputBits.end(), numberAsBits.begin() + 1,
+                    numberAsBits.end());
 }
 
 inline size_t decode_ellias_delta(std::vector<bool>& inputBits) {
-    const size_t numberBits = decode_ellias_gamma(inputBits);
+  const size_t numberBits = decode_ellias_gamma(inputBits);
 
-    size_t number{0};
-    size_t numberBitsCounter{1};
-    for(size_t numberBit = 0; numberBit < numberBits; numberBit) {
-        number << 2;
-        number |= inputBits[inputBitsCounter];
-        inputBitsCounter++;
-    }
-
-    inputBits.erase(inputBits.begin(), inputBits.begin() + numberBitsCounter);
-
-    return number;
+  inputBits.insert(inputBits.begin(), true);
+  return convert_bits_to_number(numberBits, inputBits);
 }
 
+inline void encode_ellias_omega(const size_t number,
+                                std::vector<bool>& outputBits) {
 
-inline void encode_ellias_omega(const size_t number, std::vector<bool>& outputBits) {
-    std::vector<bool> resultBits{};
-    resultBits.push_back(false);
-    
-    size_t valueToEncode{number};
-    while(valueToEncode > 1) {
-        size_t valueToEncodeBitsCounter{0};
-        while(valueToEncode > 0) {
-            resultBits.push_back(valueToEncode % 2);
-            valueToEncode << 2;
-            valueToEncodeBitsCounter++;
-        }
-        valueToEncode = valueToEncodeBitsCounter - 1;
-    }
+  outputBits.push_back(false);
 
-    outputBits.insert(outputBits.end(), resultBits.rbegin(), resultBits.rend());
+  size_t numberTmp{number};
+  while (numberTmp > 1) {
+    std::vector<bool> numberAsBits{};
+    convert_number_to_bits(numberTmp, numberAsBits);
+    numberTmp = numberAsBits.size() - 1;
+    outputBits.insert(outputBits.begin(), numberAsBits.begin(),
+                      numberAsBits.end());
+  }
 }
 
 inline size_t decode_ellias_omega(std::vector<bool>& inputBits) {
-    size_t inputBitsCounter{0};
-    bool currentBit = inputBits[inputBitsCounter];
-    inputBitsCounter++;
+  size_t number{1};
+  while (inputBits[0] != false) {
+    number = convert_bits_to_number(number + 1, inputBits);
+  }
 
-    size_t valueToDecode{1};
-    while(currentBit != false) {
-        size_t nextValueToDecode{0};
-        for(size_t bit = 0; bit < valueToDecode; bit++) {
-            nextValueToDecode << 2;
-            nextValueToDecode |= inputBits[inputBitsCounter];
-            inputBitsCounter++;
-        }
-        valueToDecode = nextValueToDecode;
-        currentBit = inputBits[inputBitsCounter];
-    }
+  inputBits.erase(inputBits.begin(), inputBits.begin() + 1);
 
-    return valueToDecode;
+  return number;
 }
 
+inline void encode_fibonacci(const size_t number, std::vector<bool>& outputBits,
+                             std::vector<size_t>& fibonacciSequence) {
+  while (number > fibonacciSequence.back()) {
+    const size_t currentFibSeqSize{fibonacciSequence.size()};
+    fibonacciSequence.push_back(fibonacciSequence[currentFibSeqSize - 2] +
+                                fibonacciSequence[currentFibSeqSize - 1]);
+  }
 
-inline encode_fibonacci(const size_t number, std::vector<bool>& outputBits, std::vector<size_t>& fibonacciSequence) {
-    while(number > fibonacciSequence.back()) {
-        const currentFibSeqSize{fibonacciSequence.size()};
-        fibonacciSequence.push_back(fibonacciSequence[currentFibSeqSize - 2] + fibonacciSequence[currentFibSeqSize - 1]);
+  size_t maxFibIndex{0};
+  for (maxFibIndex = 0; maxFibIndex < fibonacciSequence.size(); maxFibIndex++) {
+    if (fibonacciSequence[maxFibIndex] > number) {
+      break;
     }
+  }
 
-    size_t maxFibIndex{0};
-    for(maxFibIndex = 0; maxFibIndex < fibonacciSequence.size(); maxFibIndex++) {
-        if(fibonacciSequence[maxFibIndex] > number) {
-            break;
-        }
+  size_t numberTmp{number};
+  std::vector<bool> resultBits{};
+  for (size_t fibIndex = maxFibIndex - 1; fibIndex > 0; fibIndex--) {
+    if (numberTmp >= fibonacciSequence[fibIndex]) {
+      resultBits.push_back(true);
+      numberTmp -= fibonacciSequence[fibIndex];
+    } else {
+      resultBits.push_back(false);
     }
+  }
 
-    std::vector<bool> resultBits{};
-    for(size_t fibIndex = maxFibIndex-1; fibIndex > 0; fibIndex--) {
-        if(number > fibonacciSequence[fibIndex]) {
-            resultBits.push_back(true);
-            num -= fibonacciSequence[fibIndex];
-        }
-        else {
-            resultBits.push_back(false);
-        }
-    }
-
-    outputBits.insert(outputBits.end(), resultBits.rbegin(), resultBits.rend());
+  outputBits.insert(outputBits.end(), resultBits.rbegin(), resultBits.rend());
+  outputBits.push_back(true);
 }
 
-inline size_t decode_fibonacci(std::vector<bool>& inputBits, std::vector<size_t>& fibonacciSequence) {
+inline size_t decode_fibonacci(std::vector<bool>& inputBits,
+                               std::vector<size_t>& fibonacciSequence) {
+  bool lastBit{false};
+  size_t inputBitCounter{0};
+  size_t number{0};
 
+  while (inputBits[inputBitCounter] != lastBit || lastBit == false) {
+    const size_t currentFibSeqSize{fibonacciSequence.size()};
+    if (inputBitCounter + 1 >= currentFibSeqSize) {
+      fibonacciSequence.push_back(fibonacciSequence[currentFibSeqSize - 2] +
+                                  fibonacciSequence[currentFibSeqSize - 1]);
+    }
+
+    if (inputBits[inputBitCounter]) {
+      number += fibonacciSequence[inputBitCounter + 1];
+    }
+
+    lastBit = inputBits[inputBitCounter];
+    inputBitCounter++;
+  }
+
+  inputBits.erase(inputBits.begin(), inputBits.begin() + inputBitCounter + 1);
+
+  return number;
 }
 
-#endif // UNIVERSAL_ENCODING_HPP
+#endif  // UNIVERSAL_ENCODING_HPP
