@@ -1,5 +1,5 @@
-CC := g++
-CFLAGS := -std=c++17 -Wall -Wextra -pedantic
+CC := clang++
+CFLAGS := -std=c++17 -Wall -Wextra -pedantic -O3
 
 all: encoder decoder
 

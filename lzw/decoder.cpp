@@ -4,44 +4,60 @@
 std::vector<size_t> fibb = {1, 1};
 
 size_t readNumberFromBits(const std::string& universalEncoding,
-                          std::vector<bool>& bits, std::ofstream& outputFile) {
+                          std::vector<bool>& bits, std::ifstream& inputFile) {
   size_t num;
   if (universalEncoding == "fibonacci") {
-    num = decode_fibonacci(bits, fibb);
+    num = decode_fibonacci(bits, fibb, inputFile);
   } else if (universalEncoding == "ellias_gamma") {
-    num = decode_ellias_gamma(bits);
+    num = decode_ellias_gamma(bits, inputFile);
   } else if (universalEncoding == "ellias_delta") {
-    num = decode_ellias_delta(bits);
+    num = decode_ellias_delta(bits, inputFile);
   } else {
-    num = decode_ellias_omega(bits);
+    num = decode_ellias_omega(bits, inputFile);
   }
 
-  std::cout << "Odczytaj " << num << std::endl;
+  return num - 1;
 }
 
-FileInfo decode(std::ifstream& inputFile, std::ofstream& outputFile,
-                const std::string& universalEncoding) {
-  //   FileInfo fileInfo{};
+void decode(std::ifstream& inputFile, std::ofstream& outputFile,
+            const std::string& universalEncoding) {
 
-  //   //   std::unordered_map<std::string, size_t> dictionary;
-  //   //   size_t nextPrefixCode{0};
-  //   //   for (size_t i = 0; i < ALPHABET_SIZE; i++) {
-  //   //     dictionary[std::string(1, static_cast<char>(i))] = nextPrefixCode;
-  //   //     nextPrefixCode++;
-  //   //   }
+  std::unordered_map<size_t, std::string> dictionary;
+  size_t nextPrefixCode{1};
+  for (size_t i = 0; i < ALPHABET_SIZE; i++) {
+    dictionary[nextPrefixCode] = std::string(1, static_cast<char>(i));
+    nextPrefixCode++;
+  }
 
-  //   std::vector<bool> bits{};
-  //   for (int i = 0; i < 9; i++) {
-  //     //readBitsFromFile(inputFile, bits);
-  //   }
+  std::vector<bool> bits{};
 
-  //   std::cout << "Wczytane " << bits.size() << std::endl;
+  size_t code = readNumberFromBits(universalEncoding, bits, inputFile);
+  std::string currentString = dictionary[code];
+  outputFile << currentString;
+
+  while (code != 0) {
+    size_t nextCode = readNumberFromBits(universalEncoding, bits, inputFile);
+    if (nextCode != 0) {
+      if (dictionary.find(nextCode) == dictionary.end()) {
+        currentString = dictionary[code];
+        currentString += currentString[0];
+      } else {
+        currentString = dictionary[nextCode];
+      }
+
+      outputFile << currentString;
+
+      dictionary[nextPrefixCode] = dictionary[code] + currentString[0];
+      nextPrefixCode++;
+    }
+    code = nextCode;
+  }
 }
 
 int main(int argc, char** argv) {
   if (argc < 3) {
     std::cout << "Bad input!. Correct input is: ./decoder <encoded file> "
-                 "<output file> --<universal-encoding-name>=ellias_omega\n";
+                 "<output file> <universal-encoding-name>=ellias_omega\n";
 
     return -1;
   }
@@ -70,5 +86,5 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  const auto outputFileInfo = decode(inputFile, outputFile, universalEncoding);
+  decode(inputFile, outputFile, universalEncoding);
 }

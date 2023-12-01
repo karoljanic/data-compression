@@ -39,12 +39,15 @@ inline void writeBitsToFile(std::ofstream& file, std::vector<bool>& bits,
 }
 
 inline void readBitsFromFile(std::ifstream& file, std::vector<bool>& bits) {
-  char byteChar;
-  file.read(&byteChar, 1);
-  uint8_t byteValue{static_cast<uint8_t>(byteChar)};
+  if (file.eof()) {
+    return;
+  }
+
+  uint8_t buffer[1];
+  file.read((char*)(&buffer[0]), 1);
 
   for (ssize_t bitIndex = 7; bitIndex >= 0; bitIndex--) {
-    bool bit = (byteValue & (1 << bitIndex)) != 0;
+    bool bit = (buffer[0] & (1 << bitIndex)) != 0;
     bits.push_back(bit);
   }
 }

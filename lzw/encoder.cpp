@@ -7,8 +7,6 @@ void writeNumberToFile(const size_t num, const std::string& universalEncoding,
                        std::vector<bool>& bits, std::ofstream& outputFile,
                        bool flushData) {
 
-  std::cout << "Wypisz " << num + 1 << std::endl;
-
   if (universalEncoding == "fibonacci") {
     encode_fibonacci(num + 1, bits, fibb);
   } else if (universalEncoding == "ellias_gamma") {
@@ -28,16 +26,16 @@ FileInfo encode(std::ifstream& inputFile, std::ofstream& outputFile,
   std::vector<bool> bits{};
 
   std::unordered_map<std::string, size_t> dictionary;
-  size_t nextPrefixCode{0};
+  size_t nextPrefixCode{1};
   for (size_t i = 0; i < ALPHABET_SIZE; i++) {
     dictionary[std::string(1, static_cast<char>(i))] = nextPrefixCode;
     nextPrefixCode++;
   }
 
   std::string prefix{""};
-  while (!inputFile.eof()) {
-    const char currentChar = inputFile.get();
-    fileInfo.charactersCounter[static_cast<size_t>(currentChar)]++;
+  char currentChar;
+  while (inputFile.get(currentChar)) {
+    fileInfo.charactersCounter[static_cast<uint8_t>(currentChar)]++;
     fileInfo.totalCharsCounter++;
 
     const std::string newPrefix{prefix + currentChar};
@@ -51,8 +49,11 @@ FileInfo encode(std::ifstream& inputFile, std::ofstream& outputFile,
       prefix = currentChar;
     }
   }
+
   writeNumberToFile(dictionary.at(prefix), universalEncoding, bits, outputFile,
-                    true);
+                    false);
+
+  writeNumberToFile(0, universalEncoding, bits, outputFile, true);
 
   return fileInfo;
 }
@@ -60,7 +61,7 @@ FileInfo encode(std::ifstream& inputFile, std::ofstream& outputFile,
 int main(int argc, char* argv[]) {
   if (argc < 3) {
     std::cout << "Bad input!. Correct input is: ./encoder <file to encode> "
-                 "<output file> --<universal-encoding-name>=ellias_omega\n";
+                 "<output file> <universal-encoding-name>=ellias_omega\n";
     return -1;
   }
 
@@ -89,11 +90,29 @@ int main(int argc, char* argv[]) {
   }
 
   const auto inputFileInfo = encode(inputFile, outputFile, universalEncoding);
-  // const auto outputFileSize = getFileSize(outputFile);
-  // const auto entropy = calculateEntropy(inputFileInfo);
+  const auto inputFileEntropy = calculateEntropy(inputFileInfo);
 
-  // std::cout << "Entropy: " << entropy << std::endl << "Average code length: "
-  //           << static_cast<double>(8 * outputFileSize) / static_cast<double>(inputFileInfo.readBytesCounter)
-  //           << std::endl << "Compression ratio: " <<
-  //           static_cast<double>(inputFileInfo.readBytesCounter) / static_cast<double>(outputFileSize) << std::endl;
+  std::ifstream outputFileIn{outputFileName, std::ios::binary};
+  FileInfo outputFileInfo{};
+  char currentChar;
+  while (outputFileIn.get(currentChar)) {
+    outputFileInfo.charactersCounter[static_cast<uint8_t>(currentChar)]++;
+    outputFileInfo.totalCharsCounter++;
+  }
+  const auto outputFileEntropy = calculateEntropy(outputFileInfo);
+
+  std::cout << "Input file size: " << inputFileInfo.totalCharsCounter
+            << std::endl
+            << "Output file size: " << outputFileInfo.totalCharsCounter
+            << std::endl
+            << "Input File entropy: " << inputFileEntropy << std::endl
+            << "Output File entropy: " << outputFileEntropy << std::endl
+            << "Average code length: "
+            << static_cast<double>(8 * outputFileInfo.totalCharsCounter) /
+                   static_cast<double>(inputFileInfo.totalCharsCounter)
+            << std::endl
+            << "Compression ratio: "
+            << static_cast<double>(inputFileInfo.totalCharsCounter) /
+                   static_cast<double>(outputFileInfo.totalCharsCounter)
+            << std::endl;
 }

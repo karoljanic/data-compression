@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <vector>
 
+#include "universal-encoding.hpp"
+#include "utils.hpp"
+
 inline void convert_number_to_bits(const size_t number,
                                    std::vector<bool>& bits) {
   size_t numberTmp{number};
@@ -16,7 +19,12 @@ inline void convert_number_to_bits(const size_t number,
 }
 
 inline size_t convert_bits_to_number(const size_t bitsNumber,
-                                     std::vector<bool>& bits) {
+                                     std::vector<bool>& bits,
+                                     std::ifstream& inputFile) {
+  while (bits.size() < bitsNumber) {
+    readBitsFromFile(inputFile, bits);
+  }
+
   size_t number{0};
   for (size_t bitNum = 0; bitNum < bitsNumber; bitNum++) {
     number <<= 1;
@@ -42,15 +50,24 @@ inline void encode_ellias_gamma(const size_t number,
   outputBits.insert(outputBits.end(), numberAsBits.begin(), numberAsBits.end());
 }
 
-inline size_t decode_ellias_gamma(std::vector<bool>& inputBits) {
+inline size_t decode_ellias_gamma(std::vector<bool>& inputBits,
+                                  std::ifstream& inputFile) {
+  if (inputBits.size() < 1) {
+    readBitsFromFile(inputFile, inputBits);
+  }
+
   size_t numberBitsCounter{0};
   while (inputBits[numberBitsCounter] == 0) {
     numberBitsCounter++;
+
+    if (inputBits.size() <= numberBitsCounter) {
+      readBitsFromFile(inputFile, inputBits);
+    }
   }
 
   inputBits.erase(inputBits.begin(), inputBits.begin() + numberBitsCounter);
 
-  return convert_bits_to_number(numberBitsCounter + 1, inputBits);
+  return convert_bits_to_number(numberBitsCounter + 1, inputBits, inputFile);
 }
 
 inline void encode_ellias_delta(const size_t number,
@@ -63,32 +80,45 @@ inline void encode_ellias_delta(const size_t number,
                     numberAsBits.end());
 }
 
-inline size_t decode_ellias_delta(std::vector<bool>& inputBits) {
-  const size_t numberBits = decode_ellias_gamma(inputBits);
+inline size_t decode_ellias_delta(std::vector<bool>& inputBits,
+                                  std::ifstream& inputFile) {
+  const size_t numberBits = decode_ellias_gamma(inputBits, inputFile);
 
   inputBits.insert(inputBits.begin(), true);
-  return convert_bits_to_number(numberBits, inputBits);
+  return convert_bits_to_number(numberBits, inputBits, inputFile);
 }
 
 inline void encode_ellias_omega(const size_t number,
                                 std::vector<bool>& outputBits) {
 
-  outputBits.push_back(false);
+  std::vector<bool> resultBits = {false};
 
   size_t numberTmp{number};
   while (numberTmp > 1) {
     std::vector<bool> numberAsBits{};
     convert_number_to_bits(numberTmp, numberAsBits);
     numberTmp = numberAsBits.size() - 1;
-    outputBits.insert(outputBits.begin(), numberAsBits.begin(),
+    resultBits.insert(resultBits.begin(), numberAsBits.begin(),
                       numberAsBits.end());
   }
+
+  outputBits.insert(outputBits.end(), resultBits.begin(), resultBits.end());
 }
 
-inline size_t decode_ellias_omega(std::vector<bool>& inputBits) {
+inline size_t decode_ellias_omega(std::vector<bool>& inputBits,
+                                  std::ifstream& inputFile) {
+
+  if (inputBits.size() < 1) {
+    readBitsFromFile(inputFile, inputBits);
+  }
+
   size_t number{1};
   while (inputBits[0] != false) {
-    number = convert_bits_to_number(number + 1, inputBits);
+    number = convert_bits_to_number(number + 1, inputBits, inputFile);
+
+    if (inputBits.size() < 1) {
+      readBitsFromFile(inputFile, inputBits);
+    }
   }
 
   inputBits.erase(inputBits.begin(), inputBits.begin() + 1);
@@ -127,10 +157,15 @@ inline void encode_fibonacci(const size_t number, std::vector<bool>& outputBits,
 }
 
 inline size_t decode_fibonacci(std::vector<bool>& inputBits,
-                               std::vector<size_t>& fibonacciSequence) {
+                               std::vector<size_t>& fibonacciSequence,
+                               std::ifstream& inputFile) {
   bool lastBit{false};
   size_t inputBitCounter{0};
   size_t number{0};
+
+  if (inputBits.size() < 1) {
+    readBitsFromFile(inputFile, inputBits);
+  }
 
   while (inputBits[inputBitCounter] != lastBit || lastBit == false) {
     const size_t currentFibSeqSize{fibonacciSequence.size()};
@@ -145,6 +180,14 @@ inline size_t decode_fibonacci(std::vector<bool>& inputBits,
 
     lastBit = inputBits[inputBitCounter];
     inputBitCounter++;
+
+    if (inputBits.size() <= inputBitCounter) {
+      readBitsFromFile(inputFile, inputBits);
+    }
+  }
+
+  if (inputBits.size() < (inputBitCounter + 1)) {
+    readBitsFromFile(inputFile, inputBits);
   }
 
   inputBits.erase(inputBits.begin(), inputBits.begin() + inputBitCounter + 1);
