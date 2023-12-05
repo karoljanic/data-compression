@@ -1,4 +1,5 @@
 #include "tga.hpp"
+#include <algorithm>
 
 namespace tga {
     Result readImage(Image& image, const std::string& filename) {
@@ -177,5 +178,23 @@ namespace tga {
                 blue -= blueProbability * std::log2(blueProbability);
             }
         }
+    }
+
+    uint32_t countColors(const Image& image) {
+        uint32_t colorsNumber{0};
+        std::vector<uint32_t> colors;
+        for(uint16_t row = 0; row < image.height; row++) {
+            for(uint16_t col = 0; col < image.width; col++) {
+                uint32_t colorIndex = image.colormap[row][col].blue * 256 * 256 +
+                                      image.colormap[row][col].green * 256 +
+                                      image.colormap[row][col].red;
+                if(std::find(colors.cbegin(), colors.cend(), colorIndex) == colors.cend()) {
+                    colors.push_back(colorIndex);
+                    colorsNumber++;
+                }
+            }
+        }
+
+        return colorsNumber;
     }
 }
