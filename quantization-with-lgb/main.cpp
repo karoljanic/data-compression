@@ -77,15 +77,8 @@ double calculateAverageDistortion(const std::vector<tga::Color>& colors, const t
 double calculateAverageDistortion(const std::vector<tga::Color>& colors, const std::vector<tga::Color>& codebook) {
     double distortion{0.0};
     uint64_t pixelsNumber{0};
-    for(const auto& color : colors) {
-        uint16_t nearestCentroidDistance{colorsDistance(color, codebook[0])};
-        for(uint16_t centroidIndex = 1; centroidIndex < codebook.size(); centroidIndex++) {
-            uint16_t distance{colorsDistance(color, codebook[centroidIndex])};
-            if(distance < nearestCentroidDistance) {
-                nearestCentroidDistance = distance;
-            }
-        }
-        distortion += nearestCentroidDistance;
+    for(size_t index = 0; index < colors.size(); index++) {
+        distortion += colorsDistance(colors[index], codebook[index]);
         pixelsNumber++;
     }
 
@@ -174,7 +167,7 @@ void quantify(const tga::Image& image, tga::Image& quantizedImage, uint32_t colo
     std::vector<tga::Color> flattenedColormap;
     flattenColormap(image.colormap, flattenedColormap);
     std::vector<tga::Color> codebook;
-    generateCodebook(flattenedColormap, codebook, colorsNumber, 0.01);
+    generateCodebook(flattenedColormap, codebook, colorsNumber, 0.0001);
 
     // result image initialization
     tga::copyImage(image, quantizedImage);
@@ -185,8 +178,8 @@ void quantify(const tga::Image& image, tga::Image& quantizedImage, uint32_t colo
     for(uint16_t row = 0; row < quantizedImage.height; row++) {
         for(uint16_t col = 0; col < quantizedImage.width; col++) {
             uint16_t nearestCentroidDistance{colorsDistance(quantizedImage.colormap[row][col], codebook[0])};
-            uint16_t nearestCentroidIndex{0};
-            for(uint16_t centroidIndex = 1; centroidIndex < codebook.size(); centroidIndex++) {
+            size_t nearestCentroidIndex{0};
+            for(size_t centroidIndex = 1; centroidIndex < codebook.size(); centroidIndex++) {
                 uint16_t distance{colorsDistance(quantizedImage.colormap[row][col], codebook[centroidIndex])};
                 if(distance < nearestCentroidDistance) {
                     nearestCentroidIndex = centroidIndex;

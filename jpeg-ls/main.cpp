@@ -28,26 +28,55 @@ void compareSchemes(const tga::Image& image) {
             [](tga::Color /*n*/, tga::Color w, tga::Color /*nw*/) { return w; },
             [](tga::Color n, tga::Color /*w*/, tga::Color /*nw*/) { return n; },
             [](tga::Color /*n*/, tga::Color /*w*/, tga::Color nw) { return nw; },
-            [](tga::Color n, tga::Color w, tga::Color nw) { return n + w - nw; },
-            [](tga::Color n, tga::Color w, tga::Color nw) { return n + (w - nw) / 2; },
-            [](tga::Color n, tga::Color w, tga::Color nw) { return w + (n - nw) / 2; },
-            [](tga::Color n, tga::Color w, tga::Color /*nw*/) { return (n + w) / 2; },
             [](tga::Color n, tga::Color w, tga::Color nw) {
-                uint8_t r, g, b;
+                int16_t nRed{n.red}, nGreen{n.green}, nBlue{n.blue};
+                int16_t wRed{w.red}, wGreen{w.green}, wBlue{w.blue};
+                int16_t nwRed{nw.red}, nwGreen{nw.green}, nwBlue{nw.blue};
 
-                if(nw.red >= std::max(n.red, w.red)) { r = std::max(n.red, w.red); }
-                else if(nw.red <= std::min(n.red, w.red)) { r = std::min(n.red, w.red); }
-                else { r = n.red + w.red - nw.red; }
+                return tga::Color(static_cast<uint8_t>((nBlue + wBlue - nwBlue + 256) % 256),
+                        static_cast<uint8_t>((nGreen + wGreen - nwGreen + 256) % 256),
+                        static_cast<uint8_t>((nRed + wRed - nwRed + 256) % 256));
+            },
+            [](tga::Color n, tga::Color w, tga::Color nw) {
+                int16_t nRed{n.red}, nGreen{n.green}, nBlue{n.blue};
+                int16_t wRed{w.red}, wGreen{w.green}, wBlue{w.blue};
+                int16_t nwRed{nw.red}, nwGreen{nw.green}, nwBlue{nw.blue};
 
-                if(nw.green >= std::max(n.green, w.green)) { g = std::max(n.green, w.green); }
-                else if(nw.green <= std::min(n.green, w.green)) { g = std::min(n.green, w.green); }
-                else { g = n.green + w.green - nw.green; }
+                    return tga::Color(static_cast<uint8_t>((nBlue + (wBlue - nwBlue) / 2 + 256) % 256),
+                            static_cast<uint8_t>((nGreen + (wGreen - nwGreen) / 2 + 256) % 256),
+                            static_cast<uint8_t>((nRed + (wRed - nwRed) / 2 + 256) % 256));
+            },
+            [](tga::Color n, tga::Color w, tga::Color nw) {
+                int16_t nRed{n.red}, nGreen{n.green}, nBlue{n.blue};
+                int16_t wRed{w.red}, wGreen{w.green}, wBlue{w.blue};
+                int16_t nwRed{nw.red}, nwGreen{nw.green}, nwBlue{nw.blue};
 
-                if(nw.blue >= std::max(n.blue, w.blue)) { b = std::max(n.blue, w.blue); }
-                else if(nw.blue <= std::min(n.blue, w.blue)) { b = std::min(n.blue, w.blue); }
-                else { b = n.blue + w.blue - nw.blue; }
+                return tga::Color(static_cast<uint8_t>((wBlue + (nBlue - nwBlue) / 2 + 256) % 256),
+                        static_cast<uint8_t>((wGreen + (nGreen - nwGreen) / 2 + 256) % 256),
+                        static_cast<uint8_t>((wRed + (nRed - nwRed) / 2 + 256) % 256));
+            },
+            [](tga::Color n, tga::Color w, tga::Color /*nw*/) {
+                return tga::Color((n.blue + w.blue) / 2, (n.green + w.green) / 2, (n.red + w.red) / 2);
+            },
+            [](tga::Color n, tga::Color w, tga::Color nw) {
+                int16_t nRed{n.red}, nGreen{n.green}, nBlue{n.blue};
+                int16_t wRed{w.red}, wGreen{w.green}, wBlue{w.blue};
+                int16_t nwRed{nw.red}, nwGreen{nw.green}, nwBlue{nw.blue};
+                int16_t r, g, b;
+                
+                if(nwRed >= std::max(nRed, wRed)) { r = std::max(nRed, wRed); }
+                else if(nwRed <= std::min(nRed, wRed)) { r = std::min(nRed, wRed); }
+                else { r = nRed + wRed - nwRed; }
 
-                return tga::Color(b, g, r);
+                if(nwGreen >= std::max(nGreen, wGreen)) { g = std::max(nGreen, wGreen); }
+                else if(nwGreen <= std::min(nGreen, wGreen)) { g = std::min(nGreen, wGreen); }
+                else { g = nGreen + wGreen - nwGreen; }
+
+                if(nwBlue >= std::max(nBlue, wBlue)) { b = std::max(nBlue, wBlue); }
+                else if(nwBlue <= std::min(nBlue, wBlue)) { b = std::min(nBlue, wBlue); }
+                else { b = nBlue + wBlue - nwBlue; }
+
+                return tga::Color(static_cast<uint8_t>((b + 256) % 256), static_cast<uint8_t>((g + 256) % 256), static_cast<uint8_t>((r + 256) % 256));
             }
     };
     
