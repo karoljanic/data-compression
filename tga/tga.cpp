@@ -10,40 +10,7 @@ Result readImage(Image& image, const std::string& filename) {
   }
 
   try {
-    inputFile.read(reinterpret_cast<char*>(&image.idLength),
-                   sizeof(image.idLength));
-    inputFile.read(reinterpret_cast<char*>(&image.colormapType),
-                   sizeof(image.colormapType));
-    inputFile.read(reinterpret_cast<char*>(&image.imageType),
-                   sizeof(image.imageType));
-    inputFile.read(reinterpret_cast<char*>(&image.colormapOrigin),
-                   sizeof(image.colormapOrigin));
-    inputFile.read(reinterpret_cast<char*>(&image.colormapLength),
-                   sizeof(image.colormapLength));
-    inputFile.read(reinterpret_cast<char*>(&image.colormapDepth),
-                   sizeof(image.colormapDepth));
-    inputFile.read(reinterpret_cast<char*>(&image.xOrigin),
-                   sizeof(image.xOrigin));
-    inputFile.read(reinterpret_cast<char*>(&image.yOrigin),
-                   sizeof(image.yOrigin));
-    inputFile.read(reinterpret_cast<char*>(&image.width), sizeof(image.width));
-    inputFile.read(reinterpret_cast<char*>(&image.height),
-                   sizeof(image.height));
-    inputFile.read(reinterpret_cast<char*>(&image.pixelDepth),
-                   sizeof(image.pixelDepth));
-    inputFile.read(reinterpret_cast<char*>(&image.imageDescriptor),
-                   sizeof(image.imageDescriptor));
-
-    char idByte;
-    for (uint8_t idByteIndex = 0; idByteIndex < image.idLength; idByteIndex++) {
-      inputFile.read(&idByte, sizeof(idByte));
-      image.imageId.push_back(idByte);
-    }
-
-    image.colormap.resize(image.height);
-    for (uint16_t row = 0; row < image.height; row++) {
-      image.colormap[row].resize(image.width, Color(0, 0, 0));
-    }
+    readHeader(image, inputFile);
 
     for (uint16_t row = 0; row < image.height; row++) {
       for (uint16_t col = 0; col < image.width; col++) {
@@ -53,13 +20,8 @@ Result readImage(Image& image, const std::string& filename) {
       }
     }
 
-    constexpr uint8_t footerSize{26};
-    image.footer.reserve(footerSize);
-    for (uint8_t footerByteIndex = 0; footerByteIndex < footerSize;
-         footerByteIndex++) {
-      inputFile.read(&idByte, sizeof(idByte));
-      image.footer.push_back(idByte);
-    }
+    readFooter(image, inputFile);
+
   } catch (...) {
     return Result::INCORRECT_FILE_STRUCTURE;
   }
@@ -75,38 +37,7 @@ Result writeImage(Image& image, const std::string& filename) {
   }
 
   try {
-    outputFile.write(reinterpret_cast<char*>(&image.idLength),
-                     sizeof(image.idLength));
-    outputFile.write(reinterpret_cast<char*>(&image.colormapType),
-                     sizeof(image.colormapType));
-    outputFile.write(reinterpret_cast<char*>(&image.imageType),
-                     sizeof(image.imageType));
-    outputFile.write(reinterpret_cast<char*>(&image.colormapOrigin),
-                     sizeof(image.colormapOrigin));
-    outputFile.write(reinterpret_cast<char*>(&image.colormapLength),
-                     sizeof(image.colormapLength));
-    outputFile.write(reinterpret_cast<char*>(&image.colormapDepth),
-                     sizeof(image.colormapDepth));
-    outputFile.write(reinterpret_cast<char*>(&image.xOrigin),
-                     sizeof(image.xOrigin));
-    outputFile.write(reinterpret_cast<char*>(&image.yOrigin),
-                     sizeof(image.yOrigin));
-    outputFile.write(reinterpret_cast<char*>(&image.width),
-                     sizeof(image.width));
-    outputFile.write(reinterpret_cast<char*>(&image.height),
-                     sizeof(image.height));
-    outputFile.write(reinterpret_cast<char*>(&image.pixelDepth),
-                     sizeof(image.pixelDepth));
-    outputFile.write(reinterpret_cast<char*>(&image.imageDescriptor),
-                     sizeof(image.imageDescriptor));
-
-    for (uint8_t idByteIndex = 0; idByteIndex < image.idLength; idByteIndex++) {
-      outputFile.write(reinterpret_cast<char*>(&image.imageId[idByteIndex]),
-                       sizeof(image.imageId[idByteIndex]));
-    }
-
-    uint32_t len = image.width * image.height;
-    for (uint32_t bitIndex = 0; bitIndex < len; bitIndex++) {}
+    writeHeader(image, outputFile);
 
     for (uint16_t row = 0; row < image.height; row++) {
       for (uint16_t col = 0; col < image.width; col++) {
@@ -116,14 +47,122 @@ Result writeImage(Image& image, const std::string& filename) {
       }
     }
 
-    constexpr uint8_t footerSize{26};
-    for (uint8_t footerByteIndex = 0; footerByteIndex < footerSize;
-         footerByteIndex++) {
-      outputFile.write(reinterpret_cast<char*>(&image.footer[footerByteIndex]),
-                       sizeof(image.footer[footerByteIndex]));
-    }
+    writeFooter(image, outputFile);
+
   } catch (...) {
     return Result::INCORRECT_FILE_STRUCTURE;
+  }
+
+  return Result::SUCCESS;
+}
+
+Result readHeader(Image& image, std::ifstream& inputFile) {
+  if (!inputFile.is_open()) {
+    return Result::CANNOT_OPEN_FILE;
+  }
+
+  inputFile.read(reinterpret_cast<char*>(&image.idLength),
+                 sizeof(image.idLength));
+  inputFile.read(reinterpret_cast<char*>(&image.colormapType),
+                 sizeof(image.colormapType));
+  inputFile.read(reinterpret_cast<char*>(&image.imageType),
+                 sizeof(image.imageType));
+  inputFile.read(reinterpret_cast<char*>(&image.colormapOrigin),
+                 sizeof(image.colormapOrigin));
+  inputFile.read(reinterpret_cast<char*>(&image.colormapLength),
+                 sizeof(image.colormapLength));
+  inputFile.read(reinterpret_cast<char*>(&image.colormapDepth),
+                 sizeof(image.colormapDepth));
+  inputFile.read(reinterpret_cast<char*>(&image.xOrigin),
+                 sizeof(image.xOrigin));
+  inputFile.read(reinterpret_cast<char*>(&image.yOrigin),
+                 sizeof(image.yOrigin));
+  inputFile.read(reinterpret_cast<char*>(&image.width), sizeof(image.width));
+  inputFile.read(reinterpret_cast<char*>(&image.height), sizeof(image.height));
+  inputFile.read(reinterpret_cast<char*>(&image.pixelDepth),
+                 sizeof(image.pixelDepth));
+  inputFile.read(reinterpret_cast<char*>(&image.imageDescriptor),
+                 sizeof(image.imageDescriptor));
+
+  char idByte;
+  for (uint8_t idByteIndex = 0; idByteIndex < image.idLength; idByteIndex++) {
+    inputFile.read(&idByte, sizeof(idByte));
+    image.imageId.push_back(idByte);
+  }
+
+  image.colormap.resize(image.height);
+  for (uint16_t row = 0; row < image.height; row++) {
+    image.colormap[row].resize(image.width, Color(0, 0, 0));
+  }
+
+  return Result::SUCCESS;
+}
+
+Result writeHeader(Image& image, std::ofstream& outputFile) {
+  if (!outputFile.is_open()) {
+    return Result::CANNOT_OPEN_FILE;
+  }
+
+  outputFile.write(reinterpret_cast<char*>(&image.idLength),
+                   sizeof(image.idLength));
+  outputFile.write(reinterpret_cast<char*>(&image.colormapType),
+                   sizeof(image.colormapType));
+  outputFile.write(reinterpret_cast<char*>(&image.imageType),
+                   sizeof(image.imageType));
+  outputFile.write(reinterpret_cast<char*>(&image.colormapOrigin),
+                   sizeof(image.colormapOrigin));
+  outputFile.write(reinterpret_cast<char*>(&image.colormapLength),
+                   sizeof(image.colormapLength));
+  outputFile.write(reinterpret_cast<char*>(&image.colormapDepth),
+                   sizeof(image.colormapDepth));
+  outputFile.write(reinterpret_cast<char*>(&image.xOrigin),
+                   sizeof(image.xOrigin));
+  outputFile.write(reinterpret_cast<char*>(&image.yOrigin),
+                   sizeof(image.yOrigin));
+  outputFile.write(reinterpret_cast<char*>(&image.width), sizeof(image.width));
+  outputFile.write(reinterpret_cast<char*>(&image.height),
+                   sizeof(image.height));
+  outputFile.write(reinterpret_cast<char*>(&image.pixelDepth),
+                   sizeof(image.pixelDepth));
+  outputFile.write(reinterpret_cast<char*>(&image.imageDescriptor),
+                   sizeof(image.imageDescriptor));
+
+  for (uint8_t idByteIndex = 0; idByteIndex < image.idLength; idByteIndex++) {
+    outputFile.write(reinterpret_cast<char*>(&image.imageId[idByteIndex]),
+                     sizeof(image.imageId[idByteIndex]));
+  }
+
+  return Result::SUCCESS;
+}
+
+Result readFooter(Image& image, std::ifstream& inputFile) {
+  if (!inputFile.is_open()) {
+    return Result::CANNOT_OPEN_FILE;
+  }
+
+  constexpr uint8_t footerSize{26};
+  image.footer.reserve(footerSize);
+
+  char idByte;
+  for (uint8_t footerByteIndex = 0; footerByteIndex < footerSize;
+       footerByteIndex++) {
+    inputFile.read(&idByte, sizeof(idByte));
+    image.footer.push_back(idByte);
+  }
+
+  return Result::SUCCESS;
+}
+
+Result writeFooter(Image& image, std::ofstream& outputFile) {
+  if (!outputFile.is_open()) {
+    return Result::CANNOT_OPEN_FILE;
+  }
+
+  constexpr uint8_t footerSize{26};
+  for (uint8_t footerByteIndex = 0; footerByteIndex < footerSize;
+       footerByteIndex++) {
+    outputFile.write(reinterpret_cast<char*>(&image.footer[footerByteIndex]),
+                     sizeof(image.footer[footerByteIndex]));
   }
 
   return Result::SUCCESS;

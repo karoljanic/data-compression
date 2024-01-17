@@ -41,6 +41,10 @@ struct Image {
 
 Result readImage(Image& image, const std::string& filename);
 Result writeImage(Image& image, const std::string& filename);
+Result readHeader(Image& image, std::ifstream& inputFile);
+Result writeHeader(Image& image, std::ofstream& outputFile);
+Result readFooter(Image& image, std::ifstream& inputFile);
+Result writeFooter(Image& image, std::ofstream& outputFile);
 void copyImage(const Image& source, Image& destination);
 void calculateEntropy(const Image& image, double& total, double& red,
                       double& green, double& blue);
