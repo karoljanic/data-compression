@@ -6,8 +6,35 @@
 #include "bits-file.hpp"
 #include "lgb.hpp"
 
-void quantizeVector(const std::vector<int16_t>& input,
-                    std::map<int16_t, int16_t>& output, uint8_t bits) {
+int16_t clamp(int16_t value) {
+  if (value < 0) {
+    return value;
+  }
+
+  if (value > 255) {
+    return 255;
+  }
+
+  return value;
+}
+
+int16_t findNearestValue(std::vector<double>& codebook, int16_t value) {
+  double minDistance = std::numeric_limits<double>::max();
+  int16_t quantizedValue = 0;
+  for (const auto& codebookValue : codebook) {
+    int16_t castedCodebookValue = static_cast<int16_t>(codebookValue);
+    double distance = elementsDistance(value, castedCodebookValue);
+    if (distance < minDistance) {
+      minDistance = distance;
+      quantizedValue = castedCodebookValue;
+    }
+  }
+
+  return quantizedValue;
+}
+
+std::vector<double> quantizeVector(const std::vector<int16_t>& input,
+                                   uint8_t bits) {
   std::vector<double> inputDouble;
   for (const auto& value : input) {
     inputDouble.push_back(value);
@@ -16,19 +43,7 @@ void quantizeVector(const std::vector<int16_t>& input,
   std::vector<double> codebook;
   lgb(inputDouble, codebook, bits, 0.1, 10);
 
-  for (const auto& value : input) {
-    double minDistance = std::numeric_limits<double>::max();
-    int16_t quantizedValue = 0;
-    for (const auto& codebookValue : codebook) {
-      int16_t castedCodebookValue = static_cast<int16_t>(codebookValue);
-      double distance = elementsDistance(value, castedCodebookValue);
-      if (distance < minDistance) {
-        minDistance = distance;
-        quantizedValue = castedCodebookValue;
-      }
-    }
-    output[value] = quantizedValue;
-  }
+  return codebook;
 }
 
 void processChannel(std::vector<int16_t>& input,
@@ -67,32 +82,33 @@ void processChannel(std::vector<int16_t>& input,
   }
 
   // quantize low difference
-  std::map<int16_t, int16_t> lowDifferenceQuantizationMap;
-  quantizeVector(lowDifference, lowDifferenceQuantizationMap, bits);
+  std::vector<double> lowDifferenceQuantizationCodebook =
+      quantizeVector(lowDifference, bits);
 
   // save quantized low as difference
   std::vector<int16_t> lowDifference2;
   lowDifference2.emplace_back(low[0]);
-  int16_t decodedLow = lowDifferenceQuantizationMap[low[0]];
+  int16_t decodedLow =
+      clamp(findNearestValue(lowDifferenceQuantizationCodebook, low[0]));
   for (size_t i = 1; i < low.size(); i++) {
     int16_t diff = low[i] - decodedLow;
     lowDifference2.emplace_back(diff);
-    decodedLow += lowDifferenceQuantizationMap[diff];
+    decodedLow = clamp(
+        decodedLow + findNearestValue(lowDifferenceQuantizationCodebook, diff));
   }
 
   // save quantized low
   for (size_t i = 0; i < lowDifference2.size(); i++) {
-    // outputLow.push_back(lowDifferenceQuantizationMap[lowDifference2[i]]);
-    outputLow.push_back(lowDifferenceQuantizationMap[lowDifference[i]]);
+    outputLow.push_back(
+        findNearestValue(lowDifferenceQuantizationCodebook, lowDifference2[i]));
   }
 
   // quantize high
-  std::map<int16_t, int16_t> highQuantizationMap;
-  quantizeVector(high, highQuantizationMap, bits);
+  std::vector<double> highQuantizationCodebook = quantizeVector(high, bits);
 
   // save quantized high
   for (size_t i = 0; i < high.size(); i++) {
-    outputHigh.push_back(highQuantizationMap[high[i]]);
+    outputHigh.push_back(findNearestValue(highQuantizationCodebook, high[i]));
   }
 }
 
